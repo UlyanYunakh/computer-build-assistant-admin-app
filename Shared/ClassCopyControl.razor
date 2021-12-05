@@ -1,0 +1,128 @@
+@inject IDriver _driver
+@inject NavigationManager _manager
+
+<div class="bg-light border rounded p-2 m-2">
+    <div class="d-flex flex-row align-items-center">
+        <h1 class="flex-grow-1">@CopyName</h1>
+        @if (!_delete)
+        {
+            @if (_form)
+            {
+                <EditForm class="d-flex flex-row" Model="_newName" OnValidSubmit="Edit">
+                    <input class="form-control mr-2" @bind="_newName" />
+                    <button class="btn btn-secondary">Изменить</button>
+                </EditForm>
+            }
+            else
+            {
+                <button class="btn btn-outline-secondary m-2" @onclick="ShowEdit">Изменить</button>
+            }
+            <button class="btn btn-danger m-2" @onclick="Delete">Удалить</button>
+        }
+        else
+        {
+            <p>Удаление...</p>
+        }
+    </div>
+    @foreach (Rel rel in _relList)
+    {
+        <RelCopy Rel=@rel DbName="@DbName"/>
+    } 
+</div>
+
+@code {
+    [Parameter]
+    public string CopyName { get; set; }
+    [Parameter]
+    public string ClassName { get; set; }
+    [Parameter]
+    public string DbName { get; set; }
+
+    private bool _form = false;
+    private string _newName = "";
+
+    private List<Rel> _relList = new List<Rel>();
+
+    private bool _delete = false;
+
+    protected override void OnInitialized()
+    {
+        GetRelList();
+    }
+
+    private async void GetRelList()
+    {
+        _relList = new List<Rel>();
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"MATCH (n:{ClassName}" + "{title:\"" + CopyName + "\"})-[r]-(b) return type(r), labels(b), b.title");
+            var list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "type(r)").FirstOrDefault();
+                var relName = value.Value.As<string>();
+                
+                value = record.Values.Where(r => r.Key == "labels(b)").FirstOrDefault();
+                var class2 = value.Value.As<List<string>>()[0];
+
+                value = record.Values.Where(r => r.Key == "b.title").FirstOrDefault();
+                var class2Copy = value.Value.As<string>();
+
+                Rel rel = new Rel()
+                {
+                    Name = relName,
+                    Class1 = ClassName,
+                    Class1Copy = CopyName,
+                    Class2 = class2,
+                    Class2Copy = class2Copy
+                };
+                
+                if (!_relList.Contains(rel))
+                    _relList.Add(rel);
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async void Edit()
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"match (n:{ClassName}" + "{title:\"" + CopyName + "\"}) set n.title = \"" + _newName + "\"");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        _form = false;
+        CopyName = _newName;
+        GetRelList();
+    }
+
+    private void ShowEdit() => _form = true;
+
+    private async void Delete()
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"match (n:{ClassName}" + "{title:\"" + CopyName + "\"})-[rel]-() delete rel,n");
+            cursor = await session.RunAsync(@$"match (n:{ClassName}" + "{title:\"" + CopyName + "\"}) delete n");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        _delete = true;
+        StateHasChanged();
+    }
+}

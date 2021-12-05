@@ -7,4 +7,8 @@
     <RootNamespace>computer_build_assistant_admin_app</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Neo4j.Driver" Version="4.3.2" />
+  </ItemGroup>
+
 </Project>

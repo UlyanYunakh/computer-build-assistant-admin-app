@@ -1,0 +1,88 @@
+@page "/DbMain/{DbName}/Class/{Class}"
+@inject IDriver _driver
+
+<div class="row g-2 align-items-center">
+    <div class="col-auto">
+        <h1>Экземпляры: @Class</h1>
+    </div>
+    <div class="col-auto">
+        @if (_form)
+        {
+            <EditForm class="d-flex flex-row" Model="_name" OnValidSubmit="Create">
+                <input required type="text" class="form-control mr-2" @bind="_name" />
+                <button class="btn btn-primary">Добавить</button>
+            </EditForm>
+        }
+        else
+        {
+            <button class="btn btn-outline-primary " @onclick="ShowCreateForm">Добавить экземпляр</button>
+        }
+    </div>
+</div>
+@foreach (string copyName in _copyList)
+{
+    <ClassCopyControl ClassName=@Class CopyName=@copyName DbName=@DbName></ClassCopyControl>
+}
+
+@code{
+    [Parameter]
+    public string DbName { get; set; }
+
+    [Parameter]
+    public string Class { get; set; }
+
+    private List<string> _copyList = new List<string>();
+
+    private bool _form = false;
+    private string _name = "";
+
+    protected override void OnInitialized()
+    {
+        GetClassCopy();
+    }
+
+    private async void GetClassCopy()
+    {
+        _copyList = new List<string>();
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"MATCH (n:{Class}) where exists(n.title) return n.title");
+            var list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "n.title").FirstOrDefault();
+                var name = value.Value.As<string>();
+                if (!_copyList.Contains(name))
+                    _copyList.Add(name);
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async void Create()
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"CREATE (n:{Class}" + "{title:\"" + $"{_name}" + "\"})");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
+        _name = "";
+        _form = false;
+
+        GetClassCopy();
+    }
+
+    private void ShowCreateForm() => _form = true;
+}

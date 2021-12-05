@@ -1,13 +1,17 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using computer_build_assistant_admin_app.Data;
+using Neo4j.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<WeatherForecastService>();
+var uri = builder.Configuration["NeO4jConnectionSettings:Server"];
+var user = builder.Configuration["NeO4jConnectionSettings:UserName"];
+var pass = builder.Configuration["NeO4jConnectionSettings:Password"];
+builder.Services.AddSingleton(GraphDatabase.Driver(uri, AuthTokens.Basic(user, pass)));
 
 var app = builder.Build();
 

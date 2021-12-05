@@ -1,0 +1,46 @@
+@inject IDriver _driver
+@inject NavigationManager _manager
+
+<div class="bg-light border rounded p-2 m-2 d-flex flex-row align-items-center">
+    <h1 class="flex-grow-1">@ClassName</h1>
+    @if (!_delete)
+    {
+        <button class="btn btn-primary m-2" @onclick="Open">Открыть</button>
+        <button class="btn btn-danger m-2" @onclick="Delete">Удалить</button>
+    }
+    else
+    {
+        <p>Удаление...</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string ClassName { get; set; }
+    [Parameter]
+    public string DbName { get; set; }
+
+    private bool _delete = false;
+
+    private void Open()
+    {
+        _manager.NavigateTo($"/DbMain/{DbName}/Class/{ClassName}");
+    }
+
+    private async void Delete()
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {   
+            cursor = await session.RunAsync(@$"match (n:{ClassName})-[rel]-() delete rel,n");
+            cursor = await session.RunAsync(@$"match (n:{ClassName}) delete n");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        _delete = true;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,174 @@
+@page "/DbMain/{DbName}/rel/{RelName}"
+@inject IDriver _driver
+
+<div class="row g-2 align-items-center">
+    <div class="col-auto">
+        <h1>Отношения: @RelName</h1>
+    </div>
+    <div class="col-auto">
+        @if (_form)
+        {
+                <EditForm class="d-flex flex-row" Model="_rel" OnValidSubmit="Create">
+                    <select required class="form-control mr-2" @bind="_rel.Class1Id">
+                        @for (int i = 0; i < _class1CopyNames.Count; i++)
+                        {
+                            <option value="@i">@_class1CopyNames[i]</option>
+                        }
+                    </select>
+                    <input disabled class="form-control mr-2" placeholder="@RelName"/>
+                    <select required class="form-control mr-2" @bind="_rel.Class2Id">
+                        @for (int i = 0; i < _class2CopyNames.Count; i++)
+                        {
+                            <option value="@i">@_class2CopyNames[i]</option>
+                        }
+                    </select>
+                    <button class="btn btn-primary">Добавить</button>
+                </EditForm>
+        }
+        else
+        {
+            <button class="btn btn-outline-primary " @onclick="ShowCreateForm">Добавить</button>
+        }
+    </div>
+</div>
+@foreach (Rel rel in _relList)
+{
+    <div class="bg-light border rounded p-2 m-2">
+    <RelCopy Rel=@rel DbName=@DbName></RelCopy>
+</div>
+}
+
+@code {
+    [Parameter]
+    public string DbName { get; set; }
+    [Parameter]
+    public string RelName { get; set; }
+
+    private List<Rel> _relList = new List<Rel>();
+    private List<string> _class1CopyNames = new List<string>();
+    private List<string> _class2CopyNames = new List<string>();
+
+    private bool _form = false;
+    private Rel _rel = new Rel();
+    private string _relClassName1;
+    private string _relClassName2;
+
+    protected override void OnInitialized()
+    {
+        GetRelCopy();
+        GetClassCopyNames();
+    }
+
+    private async void GetClassCopyNames()
+    {
+        _class1CopyNames = new List<string>();
+        _class2CopyNames = new List<string>();
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"MATCH (n)-[r:{RelName}]-(b) where labels(n) and labels(b) return labels(n), labels(b) limit 1");
+            var list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "labels(n)").FirstOrDefault();
+                _relClassName1 = value.Value.As<List<string>>()[0];
+
+                value = record.Values.Where(r => r.Key == "labels(b)").FirstOrDefault();
+                _relClassName2 = value.Value.As<List<string>>()[0];
+            }
+
+            cursor = await session.RunAsync(@$"MATCH (n:{_relClassName1}) where exists(n.title) return n.title");
+            list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "n.title").FirstOrDefault();
+                var name = value.Value.As<string>();
+                if (!_class1CopyNames.Contains(name))
+                    _class1CopyNames.Add(name);
+            }
+
+            cursor = await session.RunAsync(@$"MATCH (n:{_relClassName2}) where exists(n.title) return n.title");
+            list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "n.title").FirstOrDefault();
+                var name = value.Value.As<string>();
+                if (!_class2CopyNames.Contains(name))
+                    _class2CopyNames.Add(name);
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async void GetRelCopy()
+    {
+        _relList = new List<Rel>();
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"MATCH (n)-[r:{RelName}]->(b) where exists(n.title) and exists(b.title) return labels(n), n.title, labels(b), b.title");
+            var list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "labels(n)").FirstOrDefault();
+                var class1 = value.Value.As<List<string>>()[0];
+
+                value = record.Values.Where(r => r.Key == "n.title").FirstOrDefault();
+                var class1Copy = value.Value.As<string>();
+
+                value = record.Values.Where(r => r.Key == "labels(b)").FirstOrDefault();
+                var class2 = value.Value.As<List<string>>()[0];
+
+                value = record.Values.Where(r => r.Key == "b.title").FirstOrDefault();
+                var class2Copy = value.Value.As<string>();
+
+                Rel rel = new Rel()
+                {
+                    Name = RelName,
+                    Class1 = class1,
+                    Class1Copy = class1Copy,
+                    Class2 = class2,
+                    Class2Copy = class2Copy
+                };
+
+                if (!_relList.Contains(rel))
+                    _relList.Add(rel);
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+        StateHasChanged();
+    }
+
+    private async void Create()
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            string node1 = "n:" + _relClassName1 + "{title:\"" + _class1CopyNames[_rel.Class1Id] + "\"}";
+            string node2 = "b:" + _relClassName2 + "{title:\"" + _class2CopyNames[_rel.Class2Id] + "\"}";
+            string query = @$"CREATE ({node1})-[r:{RelName}]->({node2})";
+            cursor = await session.RunAsync(query);
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
+        _rel = new Rel();
+        _form = false;
+
+        GetRelCopy();
+    }
+
+    private void ShowCreateForm() => _form = true;
+}
