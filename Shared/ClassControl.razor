@@ -2,7 +2,7 @@
 @inject NavigationManager _manager
 
 <div class="bg-light border rounded p-2 m-2 d-flex flex-row align-items-center">
-    <h1 class="flex-grow-1">@ClassName</h1>
+    <h1 class="flex-grow-1">@ComponentName</h1>
     @if (!_delete)
     {
         <button class="btn btn-primary m-2" @onclick="Open">Открыть</button>
@@ -16,7 +16,7 @@
 
 @code {
     [Parameter]
-    public string ClassName { get; set; }
+    public string ComponentName { get; set; }
     [Parameter]
     public string DbName { get; set; }
 
@@ -24,7 +24,7 @@
 
     private void Open()
     {
-        _manager.NavigateTo($"/DbMain/{DbName}/Class/{ClassName}");
+        _manager.NavigateTo($"/DbMain/{DbName}/Class/{ComponentName}");
     }
 
     private async void Delete()
@@ -33,8 +33,8 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {   
-            cursor = await session.RunAsync(@$"match (n:{ClassName})-[rel]-() delete rel,n");
-            cursor = await session.RunAsync(@$"match (n:{ClassName}) delete n");
+            cursor = await session.RunAsync(@$"match (n:{ComponentName})-[rel]-() delete rel,n");
+            cursor = await session.RunAsync(@$"match (n:{ComponentName}) delete n");
         }
         finally
         {

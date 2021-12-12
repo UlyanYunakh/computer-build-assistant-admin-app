@@ -112,7 +112,8 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            cursor = await session.RunAsync(@$"MATCH (n)-[r:{RelName}]->(b) where exists(n.title) and exists(b.title) return labels(n), n.title, labels(b), b.title");
+            cursor = await session.RunAsync($@"MATCH (n)-[r:{RelName}]->(b) where exists(n.title) and exists(b.title) 
+                return labels(n), n.title, labels(b), b.title");
             var list = await cursor.ToListAsync();
             foreach (IRecord record in list)
             {

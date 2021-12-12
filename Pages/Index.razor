@@ -1,33 +1,12 @@
 @page "/"
 @inject IDriver _driver
 
-
-<div class="row g-2 align-items-center">
-    <div class="col-auto">
-        <h1>Ваши базы данных:</h1>
-    </div>
-    <div class="col-auto">
-        @if (_form)
-        {
-            <EditForm class="d-flex flex-row" Model="_name" OnValidSubmit="Create">
-                <input required type="text" class="form-control mr-2" @bind="_name" />
-                <button class="btn btn-primary">Добавить</button>
-            </EditForm>
-        }
-        else
-        {
-            <button class="btn btn-outline-primary " @onclick="ShowCreateForm">Добавить базу данных</button>
-        }
-    </div>
-</div>
-
 @foreach (string name in _dbNames)
 {
     <DbControl DbName=@name></DbControl>
 }
 
 @code {
-    private bool _form = false;
     private string _name = "";
     private List<string> _dbNames = new List<string>();
 
@@ -56,48 +35,7 @@
         {
             await session.CloseAsync();
         }
+
         StateHasChanged();
-    }
-
-    private void ShowCreateForm() => _form = true;
-
-    private async void Create()
-    {
-        if (_name == "")
-            return;
-
-        IResultCursor cursor;
-        IAsyncSession session = _driver.AsyncSession();
-        try
-        {
-            cursor = await session.RunAsync(@$"CREATE DATABASE {_name}");
-        }
-        finally
-        {
-            await session.CloseAsync();
-        }
-
-        await CreateClass(_name);
-
-        _name = "";
-        _form = false;
-
-        GetDbNames();
-    }
-
-    private async Task CreateClass(string name)
-    {
-        IResultCursor cursor;
-        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(name));
-        try
-        {
-            cursor = await session.RunAsync(@$"CREATE (n:Person)-[r:Has]->(b:Job)");
-            cursor = await session.RunAsync(@$"CREATE (n:Person)-[r:In]->(b:Department)");
-            cursor = await session.RunAsync(@$"CREATE (n:Person)-[r:Head]->(b:Department)");
-        }
-        finally
-        {
-            await session.CloseAsync();
-        }
     }
 }

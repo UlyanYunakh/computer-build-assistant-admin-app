@@ -1,29 +1,31 @@
 @page "/dbMain/{DbName}"
 @inject IDriver _driver
+@using System.Text.Json
+@using System.Text.Json.Serialization
 
 <div class="row">
     <div class="col-md-12">
         <div class="row g-2 align-items-center">
             <div class="col-auto">
-                <h1>Классы:</h1>
+                <h1>Компоненты:</h1>
             </div>
             <div class="col-auto">
-                @if (_formClass)
+                @if (_formComponent)
                 {
-                    <EditForm class="d-flex flex-row" Model="_className" OnValidSubmit="CreateClass">
-                        <InputText required type="text" class="form-control mr-2" @bind-Value="_className" />
-                        <button class="btn btn-primary">Добавить</button>
+                    <EditForm class="d-flex flex-row" Model="_componentName" OnValidSubmit="CreateClass">
+                        <InputText type="text" @bind-Value="_componentName" class="form-control mr-2" placeholder="Имя компоненты" required/>
+                        <button class="btn btn-primary ms-2">Добавить</button>
                     </EditForm>
                 }
                 else
                 {
-                    <button class="btn btn-outline-primary " @onclick="ShowClassForm">Добавить класс</button>
+                    <button class="btn btn-outline-primary " @onclick="ShowClassForm">Добавить новый компонент</button>
                 }
             </div>
         </div>
-        @foreach (string className in _classNames)
+        @foreach (string componentName in _componentsNames)
         {
-            <ClassControl ClassName=@className DbName=@DbName></ClassControl>
+            <ClassControl ComponentName=@componentName DbName=@DbName></ClassControl>
         }
     </div>
     <div class="col-md-12">
@@ -38,16 +40,16 @@
                         <div>
                             <EditForm class="d-flex flex-row" Model="_rel" OnValidSubmit="CreateRel">
                                 <select required class="form-control mr-2" @bind="_rel.Class1Id">
-                                    @for (int i = 0; i < _classNames.Count; i++)
+                                    @for (int i = 0; i < _componentsNames.Count; i++)
                                     {
-                                        <option value="@i">@_classNames[i]</option>
+                                        <option value="@i">@_componentsNames[i]</option>
                                     }
                                 </select>
                                 <InputText required class="form-control mr-2" @bind-Value="_rel.Name" />
                                 <select required class="form-control mr-2" @bind="_rel.Class2Id">
-                                    @for (int i = 0; i < _classNames.Count; i++)
+                                    @for (int i = 0; i < _componentsNames.Count; i++)
                                     {
-                                        <option value="@i">@_classNames[i]</option>
+                                        <option value="@i">@_componentsNames[i]</option>
                                     }
                                 </select>
                                 <button class="btn btn-primary">Добавить</button>
@@ -70,14 +72,14 @@
         <div class="row g-2 align-items-center">
             @if (_formClassFind)
             {
-                <EditForm class=" col-auto d-flex flex-row" Model="_className" OnValidSubmit="ClassFind">
+                <EditForm class=" col-auto d-flex flex-row" Model="_componentName" OnValidSubmit="ClassFind">
                     <select required class="form-control mr-2" @bind="_classId">
-                        @for (int i = 0; i < _classNames.Count; i++)
+                        @for (int i = 0; i < _componentsNames.Count; i++)
                         {
-                            <option value="@i">@_classNames[i]</option>
+                            <option value="@i">@_componentsNames[i]</option>
                         }
                     </select>
-                    <InputText required type="text" class="form-control mr-2" @bind-Value="_className" />
+                    <InputText required type="text" class="form-control mr-2" @bind-Value="_componentName" />
                     <button class="btn btn-primary">Найти</button>
                 </EditForm>
             }
@@ -88,7 +90,7 @@
         </div>
         @if(_classFind != "")
         {
-            <ClassCopyControl ClassName=@_classNames[_classId] CopyName=@_classFind DbName=@DbName></ClassCopyControl>
+            <ClassCopyControl ClassName=@_componentsNames[_classId] CopyName=@_classFind DbName=@DbName></ClassCopyControl>
             _classFind = "";
         }
     </div>
@@ -96,19 +98,19 @@
         <div class="row g-2 align-items-center">
             @if (_formRelFind)
             {
-                <EditForm class=" col-auto d-flex flex-row" Model="_className" OnValidSubmit="RelFind">
+                <EditForm class=" col-auto d-flex flex-row" Model="_componentName" OnValidSubmit="RelFind">
                     <select required class="form-control mr-2" @bind="_class1Id">
-                        @for (int i = 0; i < _classNames.Count; i++)
+                        @for (int i = 0; i < _componentsNames.Count; i++)
                         {
-                            <option value="@i">@_classNames[i]</option>
+                            <option value="@i">@_componentsNames[i]</option>
                         }
                     </select>
                     <InputText required type="text" class="form-control mr-2" @bind-Value="_class1Name" />
                     <InputText required type="text" class="form-control mr-2" @bind-Value="_relName" />
                     <select required class="form-control mr-2" @bind="_class2Id">
-                        @for (int i = 0; i < _classNames.Count; i++)
+                        @for (int i = 0; i < _componentsNames.Count; i++)
                         {
-                            <option value="@i">@_classNames[i]</option>
+                            <option value="@i">@_componentsNames[i]</option>
                         }
                     </select>
                     <InputText required type="text" class="form-control mr-2" @bind-Value="_class2Name" />
@@ -130,12 +132,11 @@
 </div>
 @code{
     [Parameter]
-    public string DbName { get; set; }
+    public string DbName { get; set; } = "";
 
-
-    private bool _formClass = false;
-    private string _className = "";
-    private List<string> _classNames = new List<string>();
+    private bool _formComponent = false;
+    private string _componentName = "";
+    private List<string> _componentsNames = new List<string>();
 
     private bool _formRel = false;
     private Rel _rel = new Rel();
@@ -158,6 +159,58 @@
         GetClassNames();
         GetRelNames();
     }
+
+    @* Classes *@
+    private async void GetClassNames()
+    {
+        _componentsNames = new List<string>();
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@"MATCH (n:component) where labels(n) return labels(n)");
+            var list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var labels = record.Values.Where(record => record.Key == "labels(n)").Select(record => record.Value).FirstOrDefault();
+                var name = labels.As<List<string>>().Aggregate((result, nextName) => result + ":" + nextName);
+                if (!_componentsNames.Contains(name))
+                {
+                    _componentsNames.Add(name);
+                }
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private async void CreateClass()
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"CREATE (n:component:{_componentName})");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
+        _componentName = "";
+        _formComponent = false;
+
+        GetClassNames();
+    }
+
+    private void ShowClassForm() => _formComponent = true;
+
+
+
     private void ShowRelFind() => _formRelFind = true;
     private async void RelFind()
     {
@@ -165,8 +218,8 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            string node1 = "n:" + _classNames[_class1Id] + "{title:\"" + _class1Name + "\"}";
-            string node2 = "b:" + _classNames[_class2Id] + "{title:\"" + _class2Name + "\"}";
+            string node1 = "n:" + _componentsNames[_class1Id] + "{title:\"" + _class1Name + "\"}";
+            string node2 = "b:" + _componentsNames[_class2Id] + "{title:\"" + _class2Name + "\"}";
             cursor = await session.RunAsync(@$"match ({node1})-[r:{_relName}]-({node2}) return type(r), labels(b), b.title, labels(n), n.title");
             var list = await cursor.ToListAsync();
             foreach (IRecord record in list)
@@ -212,7 +265,7 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            cursor = await session.RunAsync(@"MATCH (n:" + _classNames[_classId] + "{title:\"" + _className + "\"}) return n.title");
+            cursor = await session.RunAsync(@"MATCH (n:" + _componentsNames[_classId] + "{title:\"" + _componentName + "\"}) return n.title");
             var list = await cursor.ToListAsync();
             foreach (IRecord record in list)
             {
@@ -227,51 +280,6 @@
         _formClassFind = false;
         StateHasChanged();
     }
-
-    private async void GetClassNames()
-    {
-        _classNames = new List<string>();
-        IResultCursor cursor;
-        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
-        try
-        {
-            cursor = await session.RunAsync(@"MATCH (n) where labels(n) return labels(n)");
-            var list = await cursor.ToListAsync();
-            foreach (IRecord record in list)
-            {
-                var value = record.Values.Where(r => r.Key == "labels(n)").FirstOrDefault();
-                var name = value.Value.As<List<string>>()[0];
-                if (!_classNames.Contains(name))
-                    _classNames.Add(name);
-            }
-        }
-        finally
-        {
-            await session.CloseAsync();
-        }
-        StateHasChanged();
-    }
-
-    private async void CreateClass()
-    {
-        IResultCursor cursor;
-        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
-        try
-        {
-            cursor = await session.RunAsync(@$"CREATE (n:{_className})");
-        }
-        finally
-        {
-            await session.CloseAsync();
-        }
-
-        _className = "";
-        _formClass = false;
-
-        GetClassNames();
-    }
-
-    private void ShowClassForm() => _formClass = true;
 
     private async void GetRelNames()
     {
@@ -317,7 +325,7 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            string query = @$"CREATE (n:{_classNames[_rel.Class1Id]})-[r:{_rel.Name}]->(b:{_classNames[_rel.Class2Id]})";
+            string query = @$"CREATE (n:{_componentsNames[_rel.Class1Id]})-[r:{_rel.Name}]->(b:{_componentsNames[_rel.Class2Id]})";
             cursor = await session.RunAsync(query);
         }
         finally
