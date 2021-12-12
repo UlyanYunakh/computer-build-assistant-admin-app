@@ -1,13 +1,13 @@
 namespace computer_build_assistant_admin_app.Data
 {
-    public class Rel
+    public class Relation
     {
-        public string Class1 { get; set; }
+        public string FirstClassName { get; set; }
         public string Class1Copy { get; set; }
-        public int Class1Id { get; set; }
-        public string Class2 { get; set; }
+        public int FirstClassId { get; set; }
+        public string SecondClassName { get; set; }
         public string Class2Copy { get; set; }
-        public int Class2Id { get; set; }
+        public int SecondClassId { get; set; }
         public string Name { get; set; }
     }
 }

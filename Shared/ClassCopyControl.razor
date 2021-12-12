@@ -24,7 +24,7 @@
             <p>Удаление...</p>
         }
     </div>
-    @foreach (Rel rel in _relList)
+    @foreach (Relation rel in _relList)
     {
         <RelCopy Rel=@rel DbName="@DbName"/>
     } 
@@ -41,7 +41,7 @@
     private bool _form = false;
     private string _newName = "";
 
-    private List<Rel> _relList = new List<Rel>();
+    private List<Relation> _relList = new List<Relation>();
 
     private bool _delete = false;
 
@@ -52,7 +52,7 @@
 
     private async void GetRelList()
     {
-        _relList = new List<Rel>();
+        _relList = new List<Relation>();
         IResultCursor cursor;
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
@@ -70,12 +70,12 @@
                 value = record.Values.Where(r => r.Key == "b.title").FirstOrDefault();
                 var class2Copy = value.Value.As<string>();
 
-                Rel rel = new Rel()
+                Relation rel = new Relation()
                 {
                     Name = relName,
-                    Class1 = ClassName,
+                    FirstClassName = ClassName,
                     Class1Copy = CopyName,
-                    Class2 = class2,
+                    SecondClassName = class2,
                     Class2Copy = class2Copy
                 };
                 

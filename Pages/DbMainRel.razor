@@ -9,14 +9,14 @@
         @if (_form)
         {
                 <EditForm class="d-flex flex-row" Model="_rel" OnValidSubmit="Create">
-                    <select required class="form-control mr-2" @bind="_rel.Class1Id">
+                    <select required class="form-control mr-2" @bind="_rel.FirstClassId">
                         @for (int i = 0; i < _class1CopyNames.Count; i++)
                         {
                             <option value="@i">@_class1CopyNames[i]</option>
                         }
                     </select>
                     <input disabled class="form-control mr-2" placeholder="@RelName"/>
-                    <select required class="form-control mr-2" @bind="_rel.Class2Id">
+                    <select required class="form-control mr-2" @bind="_rel.SecondClassId">
                         @for (int i = 0; i < _class2CopyNames.Count; i++)
                         {
                             <option value="@i">@_class2CopyNames[i]</option>
@@ -31,11 +31,11 @@
         }
     </div>
 </div>
-@foreach (Rel rel in _relList)
+@foreach (Relation relation in _relList)
 {
     <div class="bg-light border rounded p-2 m-2">
-    <RelCopy Rel=@rel DbName=@DbName></RelCopy>
-</div>
+        <RelCopy Relation=@relation DbName=@DbName></RelCopy>
+    </div>
 }
 
 @code {
@@ -44,12 +44,12 @@
     [Parameter]
     public string RelName { get; set; }
 
-    private List<Rel> _relList = new List<Rel>();
+    private List<Relation> _relList = new List<Relation>();
     private List<string> _class1CopyNames = new List<string>();
     private List<string> _class2CopyNames = new List<string>();
 
     private bool _form = false;
-    private Rel _rel = new Rel();
+    private Relation _rel = new Relation();
     private string _relClassName1;
     private string _relClassName2;
 
@@ -107,7 +107,7 @@
 
     private async void GetRelCopy()
     {
-        _relList = new List<Rel>();
+        _relList = new List<Relation>();
         IResultCursor cursor;
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
@@ -129,12 +129,12 @@
                 value = record.Values.Where(r => r.Key == "b.title").FirstOrDefault();
                 var class2Copy = value.Value.As<string>();
 
-                Rel rel = new Rel()
+                Relation rel = new Relation()
                 {
                     Name = RelName,
-                    Class1 = class1,
+                    FirstClassName = class1,
                     Class1Copy = class1Copy,
-                    Class2 = class2,
+                    SecondClassName = class2,
                     Class2Copy = class2Copy
                 };
 
@@ -155,8 +155,8 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            string node1 = "n:" + _relClassName1 + "{title:\"" + _class1CopyNames[_rel.Class1Id] + "\"}";
-            string node2 = "b:" + _relClassName2 + "{title:\"" + _class2CopyNames[_rel.Class2Id] + "\"}";
+            string node1 = "n:" + _relClassName1 + "{title:\"" + _class1CopyNames[_rel.FirstClassId] + "\"}";
+            string node2 = "b:" + _relClassName2 + "{title:\"" + _class2CopyNames[_rel.SecondClassId] + "\"}";
             string query = @$"CREATE ({node1})-[r:{RelName}]->({node2})";
             cursor = await session.RunAsync(query);
         }
@@ -165,7 +165,7 @@
             await session.CloseAsync();
         }
 
-        _rel = new Rel();
+        _rel = new Relation();
         _form = false;
 
         GetRelCopy();

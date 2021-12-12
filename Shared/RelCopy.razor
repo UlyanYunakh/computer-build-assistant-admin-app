@@ -1,7 +1,7 @@
 @inject IDriver _driver
 
 <div class="p-2 m-2 d-flex flex-row align-items-center">
-    <h3 class="flex-grow-1">@Rel.Class1Copy:@Rel.Class1 - [@Rel.Name] - @Rel.Class2Copy:@Rel.Class2</h3>
+    <h3 class="flex-grow-1">@Relation.Class1Copy:@Relation.FirstClassName - [@Relation.Name] - @Relation.Class2Copy:@Relation.SecondClassName</h3>
     @if (!_delete)
     {
         <button class="btn btn-outline-danger m-2" @onclick="Delete">Удалить</button>
@@ -14,9 +14,9 @@
 
 @code{
     [Parameter]
-    public Rel Rel { get; set; }
+    public Relation Relation { get; set; } = null;
     [Parameter]
-    public string DbName { get; set; }
+    public string DbName { get; set; } = "";
 
     private bool _delete = false;
 
@@ -26,9 +26,9 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            string node1 = "n:" + Rel.Class1 + "{title:\"" + Rel.Class1Copy + "\"}";
-            string node2 = "b:" + Rel.Class2 + "{title:\"" + Rel.Class2Copy + "\"}";
-            cursor = await session.RunAsync(@$"match ({node1})-[r:{Rel.Name}]-({node2}) delete r, n, b");
+            string node1 = "n:" + Relation.FirstClassName + "{title:\"" + Relation.Class1Copy + "\"}";
+            string node2 = "b:" + Relation.SecondClassName + "{title:\"" + Relation.Class2Copy + "\"}";
+            cursor = await session.RunAsync(@$"match ({node1})-[r:{Relation.Name}]-({node2}) delete r, n, b");
         }
         finally
         {

@@ -3,8 +3,8 @@
 
 <div class="bg-light border rounded p-2 m-2 d-flex flex-row align-items-center">
     <div class="flex-grow-1">
-        <h1>@Rel.Name</h1>
-        <h3>@Rel.Class1 - @Rel.Class2</h3>
+        <h1>@Relation.Name</h1>
+        <h3>@Relation.FirstClassName - @Relation.SecondClassName</h3>
     </div>
     @if (!_delete)
     {
@@ -19,15 +19,15 @@
 
 @code {
     [Parameter]
-    public Rel Rel { get; set; }
+    public Relation Relation { get; set; } = null;
     [Parameter]
-    public string DbName { get; set; }
+    public string DbName { get; set; } = "";
 
     private bool _delete = false;
 
     private void Open()
     {
-        _manager.NavigateTo($"/DbMain/{DbName}/rel/{Rel.Name}");
+        _manager.NavigateTo($"/DbMain/{DbName}/rel/{Relation.Name}");
     }
 
     private async void Delete()
@@ -36,7 +36,7 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            cursor = await session.RunAsync(@$"match ()-[r:{Rel.Name}]-() delete r");
+            cursor = await session.RunAsync(@$"match ()-[r:{Relation.Name}]-() delete r");
         }
         finally
         {
