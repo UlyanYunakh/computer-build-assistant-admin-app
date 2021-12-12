@@ -1,24 +1,42 @@
 @page "/DbMain/{DbName}/Class/{Class}"
 @inject IDriver _driver
+@using System.Text.Json
+@using System.Text.Json.Serialization
 
 <div class="row g-2 align-items-center">
     <div class="col-auto">
         <h1>@Class</h1>
     </div>
     <div class="col-auto">
-        @if (_form)
-        {
-            <EditForm class="d-flex flex-row" Model="_name" OnValidSubmit="Create">
-                <input required type="text" class="form-control" @bind="_name" />
-                <button class="btn btn-primary ms-2">Добавить</button>
-            </EditForm>
-        }
-        else
+        @if (!_form)
         {
             <button class="btn btn-outline-primary " @onclick="ShowCreateForm">Добавить</button>
         }
     </div>
 </div>
+
+@if (_form)
+{
+    <div class="row">
+        <div class="col-6">
+             <EditForm Model="_name" OnValidSubmit="Create">
+                <div class="mb-2">
+                    <input type="text" @bind="_name" class="form-control" placeholder="Имя компоненты" required/>
+                </div>
+                @for (int i = 0; i < _relations.Count; i++)
+                {
+                    var ii = i;
+                    <div class="d-flex flex-row mb-2">
+                        <input @bind="_relations[ii].Name" class="form-control" disabled/>
+                        <input @bind="_relations[ii].SecondClassCopyName" class="form-control ms-2" required/>
+                    </div>
+                }
+                <button class="btn btn-primary">Добавить</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
 @foreach (string copyName in _copyList)
 {
     <ClassCopyControl ClassName=@Class CopyName=@copyName DbName=@DbName></ClassCopyControl>
@@ -32,6 +50,7 @@
     public string Class { get; set; } = "";
 
     private List<string> _copyList = new List<string>();
+    private List<Relation> _relations = new List<Relation>();
 
     private bool _form = false;
     private string _name = "";
@@ -39,6 +58,7 @@
     protected override void OnInitialized()
     {
         GetClassCopy();
+        GetClassRelations();
     }
 
     private async void GetClassCopy()
@@ -49,20 +69,57 @@
         try
         {
             cursor = await session.RunAsync(@$"MATCH (n:{Class}) where exists(n.title) return n.title");
-            var list = await cursor.ToListAsync();
-            foreach (IRecord record in list)
+            var result = await cursor.ToListAsync();
+            foreach (IRecord record in result)
             {
                 var value = record.Values.Where(r => r.Key == "n.title").FirstOrDefault();
                 var name = value.Value.As<string>();
                 if (!_copyList.Contains(name))
+                {
                     _copyList.Add(name);
+                }
             }
         }
         finally
         {
             await session.CloseAsync();
         }
-        
+
+        StateHasChanged();
+    }
+
+    private async void GetClassRelations()
+    {
+        _relations = new List<Relation>();
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            cursor = await session.RunAsync(@$"MATCH (n:{Class})-[r]->(v) return type(r), labels(v)");
+            var list = await cursor.ToListAsync();
+            foreach (IRecord record in list)
+            {
+                var value = record.Values.Where(r => r.Key == "type(r)").FirstOrDefault();
+                var name = value.Value.As<string>();
+
+                value = record.Values.Where(r => r.Key == "labels(v)").FirstOrDefault();
+                var secondClassName = value.Value.As<List<string>>()[0];
+
+                if (_relations.Where(r => r.Name == name).Count() == 0)
+                {
+                    _relations.Add(new Relation()
+                    {
+                        Name = name,
+                        SecondClassName = secondClassName
+                    });
+                }
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
         StateHasChanged();
     }
 
@@ -72,7 +129,13 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            cursor = await session.RunAsync(@$"CREATE (n:{Class}" + "{title:\"" + $"{_name}" + "\"})");
+            var copyNode = $"{Class}" + "{title:\"" + $"{_name}" + "\"}";
+            var rel = "";
+            foreach (var relation in _relations)
+            {
+                rel += $" CREATE (n)-[:{relation.Name}]->(:value" + "{title:\"" + $"{relation.SecondClassCopyName}" + "\"})";
+            }
+            cursor = await session.RunAsync($"CREATE (n:{copyNode})" + rel);
         }
         finally
         {

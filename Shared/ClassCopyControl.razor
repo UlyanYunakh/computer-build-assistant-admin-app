@@ -6,17 +6,6 @@
         <h1 class="flex-grow-1">@CopyName</h1>
         @if (!_delete)
         {
-            @if (_form)
-            {
-                <EditForm class="d-flex flex-row" Model="_newName" OnValidSubmit="Edit">
-                    <input class="form-control mr-2" @bind="_newName" />
-                    <button class="btn btn-secondary">Изменить</button>
-                </EditForm>
-            }
-            else
-            {
-                <button class="btn btn-outline-secondary m-2" @onclick="ShowEdit">Изменить</button>
-            }
             <button class="btn btn-danger m-2" @onclick="Delete">Удалить</button>
         }
         else
@@ -26,20 +15,17 @@
     </div>
     @foreach (Relation rel in _relList)
     {
-        <RelCopy Rel=@rel DbName="@DbName"/>
+        <RelCopy Relation=@rel DbName="@DbName"/>
     } 
 </div>
 
 @code {
     [Parameter]
-    public string CopyName { get; set; }
+    public string CopyName { get; set; } = "";
     [Parameter]
-    public string ClassName { get; set; }
+    public string ClassName { get; set; } = "";
     [Parameter]
-    public string DbName { get; set; }
-
-    private bool _form = false;
-    private string _newName = "";
+    public string DbName { get; set; } = "";
 
     private List<Relation> _relList = new List<Relation>();
 
@@ -74,9 +60,9 @@
                 {
                     Name = relName,
                     FirstClassName = ClassName,
-                    Class1Copy = CopyName,
+                    FirstClassCopyName = CopyName,
                     SecondClassName = class2,
-                    Class2Copy = class2Copy
+                    SecondClassCopyName = class2Copy
                 };
                 
                 if (!_relList.Contains(rel))
@@ -87,28 +73,10 @@
         {
             await session.CloseAsync();
         }
+        
         StateHasChanged();
     }
-
-    private async void Edit()
-    {
-        IResultCursor cursor;
-        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
-        try
-        {
-            cursor = await session.RunAsync(@$"match (n:{ClassName}" + "{title:\"" + CopyName + "\"}) set n.title = \"" + _newName + "\"");
-        }
-        finally
-        {
-            await session.CloseAsync();
-        }
-        _form = false;
-        CopyName = _newName;
-        GetRelList();
-    }
-
-    private void ShowEdit() => _form = true;
-
+    
     private async void Delete()
     {
         IResultCursor cursor;
@@ -123,6 +91,7 @@
             await session.CloseAsync();
         }
         _delete = true;
+
         StateHasChanged();
     }
 }
