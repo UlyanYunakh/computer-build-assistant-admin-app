@@ -143,7 +143,7 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            cursor = await session.RunAsync(@"match (n)-[r]-(b) return labels(n), type(r), labels(b)");
+            cursor = await session.RunAsync(@"match (n)-[r]->(b) return labels(n), type(r), labels(b)");
             var list = await cursor.ToListAsync();
             foreach (IRecord record in list)
             {

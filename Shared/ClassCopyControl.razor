@@ -43,7 +43,7 @@
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         try
         {
-            cursor = await session.RunAsync(@$"MATCH (n:{ClassName}" + "{title:\"" + CopyName + "\"})-[r]-(b) return type(r), labels(b), b.title");
+            cursor = await session.RunAsync(@$"MATCH (n:{ClassName}" + "{title:\"" + CopyName + "\"})-[r]->(b) return type(r), labels(b), b.title");
             var list = await cursor.ToListAsync();
             foreach (IRecord record in list)
             {

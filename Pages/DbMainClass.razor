@@ -1,5 +1,6 @@
 @page "/DbMain/{DbName}/Class/{Class}"
 @inject IDriver _driver
+@inject StaticData staticData
 @using System.Text.Json
 @using System.Text.Json.Serialization
 
@@ -125,15 +126,24 @@
 
     private async void Create()
     {
+        Dictionary<string, string> component = new Dictionary<string, string>();
         IResultCursor cursor;
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        var companyName = "";
+        var copyNode = "";
         try
         {
-            var copyNode = $"{Class}" + "{title:\"" + $"{_name}" + "\"}";
+            copyNode = $"{Class}" + "{title:\"" + $"{_name}" + "\"}";
+            component.Add("componentTitle", _name);
+            component.Add("componentClass", Class);
             var rel = "";
             foreach (var relation in _relations)
             {
                 rel += $" CREATE (n)-[:{relation.Name}]->(:value" + "{title:\"" + $"{relation.SecondClassCopyName}" + "\"})";
+                component.Add(relation.Name, relation.SecondClassCopyName);
+                if (relation.Name == "company"){
+                    companyName = relation.SecondClassCopyName;
+                }
             }
             cursor = await session.RunAsync($"CREATE (n:{copyNode})" + rel);
         }
@@ -142,10 +152,65 @@
             await session.CloseAsync();
         }
 
+        var titles = await GetCompatibilityTitles(companyName, _name);
+        await AddCompatibilityRelation(copyNode, titles);
+
         _name = "";
         _form = false;
 
+        Console.WriteLine(JsonSerializer.Serialize(component));
+
         GetClassCopy();
+    }
+
+    private async Task<List<string>> GetCompatibilityTitles(string companyName, string currTitle)
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        var titles = new List<string>();
+        try
+        {
+            cursor = await session.RunAsync(@$"MATCH (n)-[r:company]->(v" + "{title:\"" + companyName + "\"}" + ") where exists(n.title) return n.title");
+            var result = await cursor.ToListAsync();
+            foreach (IRecord record in result)
+            {
+                var value = record.Values.Where(r => r.Key == "n.title").FirstOrDefault();
+                var name = value.Value.As<string>();
+                if (!titles.Contains(name) && name != currTitle)
+                {
+                    titles.Add(name);
+                }
+            }
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
+        return titles;
+    }
+
+    private async Task<bool> AddCompatibilityRelation(string node, List<string> titles)
+    {
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            var rel = "";
+            foreach (var title in titles)
+            {
+                rel += $" MATCH (n2:component" + "{title:\"" + title + "\"})";
+                rel += $" CREATE (n)-[:compatibility]->(n2)";
+                rel += $" CREATE (n2)-[:compatibility]->(n)";
+            }
+            cursor = await session.RunAsync($"MATCH (n:{node})" + rel + "return (n)");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+
+        return true;
     }
 
     private void ShowCreateForm() => _form = true;

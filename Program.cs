@@ -12,6 +12,7 @@ var uri = builder.Configuration["NeO4jConnectionSettings:Server"];
 var user = builder.Configuration["NeO4jConnectionSettings:UserName"];
 var pass = builder.Configuration["NeO4jConnectionSettings:Password"];
 builder.Services.AddSingleton(GraphDatabase.Driver(uri, AuthTokens.Basic(user, pass)));
+builder.Services.AddSingleton<StaticData>(new StaticData());
 
 var app = builder.Build();
 
