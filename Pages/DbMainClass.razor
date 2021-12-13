@@ -126,7 +126,8 @@
 
     private async void Create()
     {
-        Dictionary<string, string> component = new Dictionary<string, string>();
+        Dictionary<string, double> values = new Dictionary<string, double>();
+        Dictionary<string, string> componentInfo = new Dictionary<string, string>();
         IResultCursor cursor;
         IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
         var companyName = "";
@@ -134,13 +135,13 @@
         try
         {
             copyNode = $"{Class}" + "{title:\"" + $"{_name}" + "\"}";
-            component.Add("componentTitle", _name);
-            component.Add("componentClass", Class);
+            componentInfo.Add("componentTitle", _name);
+            componentInfo.Add("componentClass", Class);
             var rel = "";
             foreach (var relation in _relations)
             {
                 rel += $" CREATE (n)-[:{relation.Name}]->(:value" + "{title:\"" + $"{relation.SecondClassCopyName}" + "\"})";
-                component.Add(relation.Name, relation.SecondClassCopyName);
+                values.Add(relation.Name, Convert.ToDouble(relation.SecondClassCopyName));
                 if (relation.Name == "company"){
                     companyName = relation.SecondClassCopyName;
                 }
@@ -154,11 +155,16 @@
 
         var titles = await GetCompatibilityTitles(companyName, _name);
         await AddCompatibilityRelation(copyNode, titles);
+        await CalculateWorth(
+            values,
+            staticData.bestValues,
+            staticData.coefficients,
+            componentInfo,
+            copyNode
+        );
 
         _name = "";
         _form = false;
-
-        Console.WriteLine(JsonSerializer.Serialize(component));
 
         GetClassCopy();
     }
@@ -214,4 +220,36 @@
     }
 
     private void ShowCreateForm() => _form = true;
+
+    @* START OF AGENT SECTION *@
+
+    private async Task CalculateWorth(
+        Dictionary<string, double> componentValues, 
+        Dictionary<string, double> bestValues, 
+        Dictionary<string, double> coefficients,
+        Dictionary<string, string> componentInfo, // не обращай внимания на это
+        string node // не обращай внимания на это
+    )
+    {
+        var worth = 0;
+
+        // вычисления 
+
+
+        // конец вычислений
+
+        IResultCursor cursor;
+        IAsyncSession session = _driver.AsyncSession(c => c.WithDatabase(DbName));
+        try
+        {
+            var value = "{title:\"" + worth + "\"}";
+            cursor = await session.RunAsync($"MATCH (n:{node}) CREATE (n)-[:worth]->(:value{value}) return (n)");
+        }
+        finally
+        {
+            await session.CloseAsync();
+        }
+    }
+
+    @* END OF AGENT SECTION *@
 }
