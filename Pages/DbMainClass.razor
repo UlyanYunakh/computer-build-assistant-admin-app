@@ -232,9 +232,20 @@
     )
     {
         var worth = 0;
+        var tempWorth = 0;
+        var counter = 0;
 
         // вычисления 
 
+        foreach(var item in componentValues)
+        {
+            var key = item.Key;
+            if(bestValues.ContainsKey(key)){
+                counter += 1;
+                tempWorth += item.Value*coefficients[key]/bestValues[key];
+            }
+        }
+        worth = tempWorth/counter; 
 
         // конец вычислений
 
