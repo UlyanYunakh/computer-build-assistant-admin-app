@@ -1,11 +1,11 @@
 namespace computer_build_assistant_admin_app.Data
 {
-  public static class StaticData
+  public class StaticData
   {
-    public static Dictionary<string, double> bestValues = new Dictionary<string, double>();
-    public static Dictionary<string, double> coefficients = new Dictionary<string, double>();
+    public Dictionary<string, double> bestValues = new Dictionary<string, double>();
+    public Dictionary<string, double> coefficients = new Dictionary<string, double>();
 
-    static StaticData() 
+    public StaticData() 
     {
       bestValues.Add("motherboardSize", 5);
       bestValues.Add("memory_frequency", 3000);
