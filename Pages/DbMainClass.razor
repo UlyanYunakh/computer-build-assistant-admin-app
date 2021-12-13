@@ -141,9 +141,11 @@
             foreach (var relation in _relations)
             {
                 rel += $" CREATE (n)-[:{relation.Name}]->(:value" + "{title:\"" + $"{relation.SecondClassCopyName}" + "\"})";
-                values.Add(relation.Name, Convert.ToDouble(relation.SecondClassCopyName));
                 if (relation.Name == "company"){
                     companyName = relation.SecondClassCopyName;
+                }
+                else {
+                    values.Add(relation.Name, Convert.ToDouble(relation.SecondClassCopyName));
                 }
             }
             cursor = await session.RunAsync($"CREATE (n:{copyNode})" + rel);
@@ -231,9 +233,9 @@
         string node // не обращай внимания на это
     )
     {
-        var worth = 0;
-        var tempWorth = 0;
-        var counter = 0;
+        var worth = 0.0;
+        var tempWorth = 0.0;
+        var counter = 0.0;
 
         // вычисления 
 
@@ -242,10 +244,10 @@
             var key = item.Key;
             if(bestValues.ContainsKey(key)){
                 counter += 1;
-                tempWorth += item.Value*coefficients[key]/bestValues[key];
+                tempWorth += item.Value * coefficients[key] / bestValues[key];
             }
         }
-        worth = tempWorth/counter; 
+        worth = tempWorth / counter; 
 
         // конец вычислений
 
